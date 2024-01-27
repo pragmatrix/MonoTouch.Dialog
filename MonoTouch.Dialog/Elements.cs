@@ -1187,7 +1187,7 @@ namespace MonoTouch.Dialog
 		public string? Group;
 		internal int RadioIdx;
 		
-		public RadioElement (string caption, string group) : base (caption)
+		public RadioElement (string caption, string? group) : base (caption)
 		{
 			Group = group;
 		}
