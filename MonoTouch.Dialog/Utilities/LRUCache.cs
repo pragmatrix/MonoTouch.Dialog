@@ -28,74 +28,72 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using JetBrains.Annotations;
 
 namespace MonoTouch.Dialog.Utilities {
 	
+[PublicAPI]
 public class LRUCache<TKey, TValue>
 	where TKey : notnull
 	where TValue : class?, IDisposable? 
 	
 {
-	Dictionary<TKey, LinkedListNode <TValue>> dict;
-	Dictionary<LinkedListNode<TValue>, TKey> revdict;
-	LinkedList<TValue> list;
-	int entryLimit, sizeLimit, currentSize;
-	Func<TValue,int>? slotSizeFunc;
-	
-	public LRUCache (int entryLimit) : this (entryLimit, 0, null)
+	readonly Dictionary<TKey, LinkedListNode <TValue>> _dict;
+	readonly Dictionary<LinkedListNode<TValue>, TKey> _revDict;
+	readonly LinkedList<TValue> _list;
+	readonly int _entryLimit;
+	readonly int _sizeLimit;
+	int _currentSize;
+	readonly Func<TValue,int>? _slotSizeFunc;
+
+	public LRUCache (int entryLimit, int sizeLimit = 0, Func<TValue,int>? slotSizer = null)
 	{
-	}
-		
-	public LRUCache (int entryLimit, int sizeLimit, Func<TValue,int>? slotSizer)
-	{
-		list = new LinkedList<TValue> ();
-		dict = new Dictionary<TKey, LinkedListNode<TValue>> ();
-		revdict = new Dictionary<LinkedListNode<TValue>, TKey> ();
+		_list = new LinkedList<TValue> ();
+		_dict = new Dictionary<TKey, LinkedListNode<TValue>> ();
+		_revDict = new Dictionary<LinkedListNode<TValue>, TKey> ();
 		
 		if (sizeLimit != 0 && slotSizer == null)
 			throw new ArgumentNullException (nameof(slotSizer), "If sizeLimit is set, the slotSizer must be provided");
 		
-		this.entryLimit = entryLimit;
-		this.sizeLimit = sizeLimit;
-		this.slotSizeFunc = slotSizer;
+		_entryLimit = entryLimit;
+		_sizeLimit = sizeLimit;
+		_slotSizeFunc = slotSizer;
 	}
 
 	void Evict ()
 	{
-		var last = list.Last;
+		var last = _list.Last;
 		Trace.Assert(last is not null);
-		var key = revdict [last];
+		var key = _revDict [last];
 		
-		if (sizeLimit > 0){
-			int size = slotSizeFunc!(last.Value);
-			currentSize -= size;
+		if (_sizeLimit > 0){
+			var size = _slotSizeFunc!(last.Value);
+			_currentSize -= size;
 		}
 		
-		dict.Remove (key);
-		revdict.Remove (last);
-		list.RemoveLast ();
+		_dict.Remove (key);
+		_revDict.Remove (last);
+		_list.RemoveLast ();
 		last.Value!.Dispose ();
 	}
 
 	public void Purge ()
 	{
-		foreach (var element in list)
+		foreach (var element in _list)
 			element!.Dispose ();
 		
-		dict.Clear ();
-		revdict.Clear ();
-		list.Clear ();
-		currentSize = 0;
+		_dict.Clear ();
+		_revDict.Clear ();
+		_list.Clear ();
+		_currentSize = 0;
 	}
 
 	[DisallowNull]
 	public TValue? this [TKey key] {
 		get {
-			LinkedListNode<TValue>? node;
-			
-			if (dict.TryGetValue (key, out node)){
-				list.Remove (node);
-				list.AddFirst (node);
+			if (_dict.TryGetValue (key, out var node)){
+				_list.Remove (node);
+				_list.AddFirst (node);
 
 				return node.Value;
 			}
@@ -103,40 +101,39 @@ public class LRUCache<TKey, TValue>
 		}
 
 		set {
-			LinkedListNode<TValue>? node;
-			int size = sizeLimit > 0 ? slotSizeFunc! (value) : 0;
+			var size = _sizeLimit > 0 ? _slotSizeFunc! (value) : 0;
 			
-			if (dict.TryGetValue (key, out node)){
-				if (sizeLimit > 0 && node.Value != null){
-					int repSize = slotSizeFunc! (node.Value);
-					currentSize -= repSize;
-					currentSize += size;
+			if (_dict.TryGetValue (key, out LinkedListNode<TValue>? node)){
+				if (_sizeLimit > 0 && node.Value != null){
+					int repSize = _slotSizeFunc! (node.Value);
+					_currentSize -= repSize;
+					_currentSize += size;
 				}
 				
 				// If we already have a key, move it to the front
-				list.Remove (node);
-				list.AddFirst (node);
+				_list.Remove (node);
+				_list.AddFirst (node);
 	
 				// Remove the old value
 				if (node.Value != null)
 					node.Value.Dispose ();
 				node.Value = value;
-				while (sizeLimit > 0 && currentSize > sizeLimit && list.Count > 1)
+				while (_sizeLimit > 0 && _currentSize > _sizeLimit && _list.Count > 1)
 					Evict ();
 				return;
 			}
-			if (sizeLimit > 0){
-				while (sizeLimit > 0 && currentSize + size > sizeLimit && list.Count > 0)
+			if (_sizeLimit > 0){
+				while (_sizeLimit > 0 && _currentSize + size > _sizeLimit && _list.Count > 0)
 					Evict ();
 			}
-			if (dict.Count >= entryLimit)
+			if (_dict.Count >= _entryLimit)
 				Evict ();
 			// Adding new node
 			node = new LinkedListNode<TValue> (value);
-			list.AddFirst (node);
-			dict [key] = node;
-			revdict [node] = key;
-			currentSize += size;
+			_list.AddFirst (node);
+			_dict [key] = node;
+			_revDict [node] = key;
+			_currentSize += size;
 		}
 	}
 

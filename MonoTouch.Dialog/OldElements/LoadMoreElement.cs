@@ -7,12 +7,14 @@ using System.Diagnostics;
 using Foundation;
 using UIKit;
 using CoreGraphics;
+using JetBrains.Annotations;
 
 namespace MonoTouch.Dialog
 {
+	[PublicAPI]
 	public class LoadMoreElement : Element, IElementSizing
 	{
-		static NSString key = new NSString ("LoadMoreElement");
+		static readonly NSString Key = new("LoadMoreElement");
 		public string? NormalCaption { get; set; }
 		public string? LoadingCaption { get; set; }
 		public UIColor? TextColor { get; set; }
@@ -20,8 +22,7 @@ namespace MonoTouch.Dialog
 		public event Action<LoadMoreElement>? Tapped;
 		public UIFont Font;
 		public float? Height;
-		UITextAlignment alignment = UITextAlignment.Center;
-		bool animating;
+		bool _animating;
 		
 		public LoadMoreElement () : base ("")
 		{
@@ -45,12 +46,12 @@ namespace MonoTouch.Dialog
 		
 		public override UITableViewCell GetCell (UITableView tv)
 		{
-			var cell = tv.DequeueReusableCell (key);
+			var cell = tv.DequeueReusableCell (Key);
 			UIActivityIndicatorView? activityIndicator;
 			UILabel? caption;
 			
 			if (cell == null){
-				cell = new UITableViewCell (UITableViewCellStyle.Default, key);
+				cell = new UITableViewCell (UITableViewCellStyle.Default, Key);
 			
 				activityIndicator = new UIActivityIndicatorView () {
 					ActivityIndicatorViewStyle = UIActivityIndicatorViewStyle.Gray,
@@ -94,13 +95,11 @@ namespace MonoTouch.Dialog
 		}
 		
 		public bool Animating {
-			get {
-				return animating;
-			}
+			get => _animating;
 			set {
-				if (animating == value)
+				if (_animating == value)
 					return;
-				animating = value;
+				_animating = value;
 				var cell = GetActiveCell ();
 				if (cell == null)
 					return;
@@ -140,30 +139,28 @@ namespace MonoTouch.Dialog
 			return new NSString (text).StringSize (Font, (float)UIScreen.MainScreen.Bounds.Width, UILineBreakMode.TailTruncation);
 		}
 		
-		const int pad = 10;
-		const int isize = 20;
+		const int Pad = 10;
+		const int Size = 20;
 		
 		public nfloat GetHeight (UITableView tableView, NSIndexPath indexPath)
 		{
-			return Height ?? GetTextSize (Animating ? LoadingCaption : NormalCaption).Height + 2*pad;
+			return Height ?? GetTextSize (Animating ? LoadingCaption : NormalCaption).Height + 2*Pad;
 		}
 		
 		void Layout (UITableViewCell cell, UIActivityIndicatorView activityIndicator, UILabel caption)
 		{
-			var sbounds = cell.ContentView.Bounds;
+			var sBounds = cell.ContentView.Bounds;
 
 			var size = GetTextSize (Animating ? LoadingCaption : NormalCaption);
 			
 			if (!activityIndicator.Hidden)
-				activityIndicator.Frame = new CGRect ((sbounds.Width-size.Width)/2-isize*2, pad, isize, isize);
+				activityIndicator.Frame = new CGRect ((sBounds.Width-size.Width)/2-Size*2, Pad, Size, Size);
 
-			caption.Frame = new CGRect (10, pad, sbounds.Width-20, size.Height);
+			caption.Frame = new CGRect (10, Pad, sBounds.Width-20, size.Height);
 		}
 		
-		public UITextAlignment Alignment { 
-			get { return alignment; } 
-			set { alignment = value; }
-		}
+		public UITextAlignment Alignment { get; set; } = UITextAlignment.Center;
+
 		public UITableViewCellAccessory Accessory { get; set; }
 	}
 }

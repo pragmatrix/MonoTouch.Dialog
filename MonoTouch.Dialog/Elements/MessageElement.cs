@@ -3,14 +3,15 @@ using System;
 using UIKit;
 using Foundation;
 using CoreGraphics;
+using JetBrains.Annotations;
 
 namespace MonoTouch.Dialog {
 
 	public class MessageSummaryView : UIView {
-		static UIFont SenderFont = UIFont.BoldSystemFontOfSize (19);
-		static UIFont SubjectFont = UIFont.SystemFontOfSize (14);
-		static UIFont TextFont = UIFont.SystemFontOfSize (13);
-		static UIFont CountFont = UIFont.BoldSystemFontOfSize (13);
+		static readonly UIFont SenderFont = UIFont.BoldSystemFontOfSize (19);
+		static readonly UIFont SubjectFont = UIFont.SystemFontOfSize (14);
+		static readonly UIFont TextFont = UIFont.SystemFontOfSize (13);
+		static readonly UIFont CountFont = UIFont.BoldSystemFontOfSize (13);
 		public string? Sender { get; private set; }
 		public string? Body { get; private set; }
 		public string? Subject { get; private set; }
@@ -18,13 +19,12 @@ namespace MonoTouch.Dialog {
 		public bool NewFlag  { get; private set; }
 		public int MessageCount  { get; private set; }
 		
-		static CGGradient gradient;
+		static readonly CGGradient Gradient;
 		
 		static MessageSummaryView ()
 		{
-			using (var colorspace = CGColorSpace.CreateDeviceRGB ()){
-				gradient = new CGGradient (colorspace, new nfloat [] { /* first */ .52f, .69f, .96f, 1, /* second */ .12f, .31f, .67f, 1 }, null); //new float [] { 0, 1 });
-			}
+			using var colorspace = CGColorSpace.CreateDeviceRGB ();
+			Gradient = new CGGradient (colorspace, new nfloat [] { /* first */ .52f, .69f, .96f, 1, /* second */ .12f, .31f, .67f, 1 }, null); //new float [] { 0, 1 });
 		}
 		
 		public MessageSummaryView ()
@@ -45,24 +45,24 @@ namespace MonoTouch.Dialog {
 		
 		public override void Draw (CGRect rect)
 		{
-			const int padright = 21;
+			const int PadRight = 21;
 			var ctx = UIGraphics.GetCurrentContext ();
 			nfloat boxWidth;
-			CGSize ssize;
+			CGSize sSize;
 			
 			if (MessageCount > 0){
 				var ms = MessageCount.ToString ();
-				ssize = ms.StringSize (CountFont);
-				boxWidth = (nfloat)Math.Min (22 + ssize.Width, 18);
-				var crect = new CGRect (Bounds.Width-20-boxWidth, 32, boxWidth, 16);
+				sSize = ms.StringSize (CountFont);
+				boxWidth = (nfloat)Math.Min (22 + sSize.Width, 18);
+				var cRect = new CGRect (Bounds.Width-20-boxWidth, 32, boxWidth, 16);
 				
 				UIColor.Gray.SetFill ();
-				GraphicsUtil.FillRoundedRect (ctx, crect, 3);
+				GraphicsUtil.FillRoundedRect (ctx, cRect, 3);
 				UIColor.White.SetColor ();
-				crect.X += 5;
-				ms.DrawString (crect, CountFont);
+				cRect.X += 5;
+				ms.DrawString (cRect, CountFont);
 				
-				boxWidth += padright;
+				boxWidth += PadRight;
 			} else
 				boxWidth = 0;
 			
@@ -78,27 +78,27 @@ namespace MonoTouch.Dialog {
 				label = Date.ToString ("dddd");
 			else
 				label = Date.ToShortDateString ();
-			ssize = label.StringSize (SubjectFont);
-			nfloat dateSize = ssize.Width + padright + 5;
+			sSize = label.StringSize (SubjectFont);
+			nfloat dateSize = sSize.Width + PadRight + 5;
 			label.DrawString (new CGRect (Bounds.Width-dateSize, 6, dateSize, 14), SubjectFont, UILineBreakMode.Clip, UITextAlignment.Left);
 			
-			const int offset = 33;
-			nfloat bw = Bounds.Width-offset;
+			const int Offset = 33;
+			nfloat bw = Bounds.Width-Offset;
 			
 			UIColor.Black.SetColor ();
-			Sender.DrawString (new CGPoint (offset, 2), (float)(bw-dateSize), SenderFont, UILineBreakMode.TailTruncation);
-			Subject.DrawString (new CGPoint (offset, 23), (float)(bw-offset-boxWidth), SubjectFont, UILineBreakMode.TailTruncation);
+			Sender.DrawString (new CGPoint (Offset, 2), (float)(bw-dateSize), SenderFont, UILineBreakMode.TailTruncation);
+			Subject.DrawString (new CGPoint (Offset, 23), (float)(bw-Offset-boxWidth), SubjectFont, UILineBreakMode.TailTruncation);
 			
 			//UIColor.Black.SetFill ();
 			//ctx.FillRect (new CGRect (offset, 40, bw-boxWidth, 34));
 			UIColor.Gray.SetColor ();
-			Body.DrawString (new CGRect (offset, 40, bw-boxWidth, 34), TextFont, UILineBreakMode.TailTruncation, UITextAlignment.Left);
+			Body.DrawString (new CGRect (Offset, 40, bw-boxWidth, 34), TextFont, UILineBreakMode.TailTruncation, UITextAlignment.Left);
 			
 			if (NewFlag){
 				ctx.SaveState ();
 				ctx.AddEllipseInRect (new CGRect (10, 32, 12, 12));
 				ctx.Clip ();
-				ctx.DrawLinearGradient (gradient, new CGPoint (10, 32), new CGPoint (22, 44), CGGradientDrawingOptions.DrawsAfterEndLocation);
+				ctx.DrawLinearGradient (Gradient, new CGPoint (10, 32), new CGPoint (22, 44), CGGradientDrawingOptions.DrawsAfterEndLocation);
 				ctx.RestoreState ();
 			}
 			
@@ -112,8 +112,9 @@ namespace MonoTouch.Dialog {
 		}
 	}
 		
+	[PublicAPI]
 	public class MessageElement : Element, IElementSizing {
-		static NSString mKey = new NSString ("MessageElement");
+		static readonly NSString MKey = new("MessageElement");
 
 		public string? Sender;
 		public string? Body;
@@ -123,25 +124,25 @@ namespace MonoTouch.Dialog {
 		public int MessageCount;
 		
 		class MessageCell : UITableViewCell {
-			MessageSummaryView view;
+			readonly MessageSummaryView _view;
 			
-			public MessageCell () : base (UITableViewCellStyle.Default, mKey)
+			public MessageCell () : base (UITableViewCellStyle.Default, MKey)
 			{
-				view = new MessageSummaryView ();
-				base.ContentView.Add (view);
+				_view = new MessageSummaryView ();
+				base.ContentView.Add (_view);
 				base.Accessory = UITableViewCellAccessory.DisclosureIndicator;
 			}
 			
 			public void Update (MessageElement me)
 			{
-				view.Update (me.Sender, me.Body, me.Subject, me.Date, me.NewFlag, me.MessageCount);
+				_view.Update (me.Sender, me.Body, me.Subject, me.Date, me.NewFlag, me.MessageCount);
 			}
 			
 			public override void LayoutSubviews ()
 			{
 				base.LayoutSubviews ();
-				view.Frame = ContentView.Bounds;
-				view.SetNeedsDisplay ();
+				_view.Frame = ContentView.Bounds;
+				_view.SetNeedsDisplay ();
 			}
 		}
 		
@@ -156,9 +157,7 @@ namespace MonoTouch.Dialog {
 		
 		public override UITableViewCell GetCell (UITableView tv)
 		{
-			var cell = tv.DequeueReusableCell (mKey) as MessageCell;
-			if (cell == null)
-				cell = new MessageCell ();
+			var cell = tv.DequeueReusableCell (MKey) as MessageCell ?? new MessageCell ();
 			cell.Update (this);
 			return cell;
 		}
