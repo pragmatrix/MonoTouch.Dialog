@@ -548,7 +548,7 @@ namespace MonoTouch.Dialog {
 		//
 		// Creates one of the various StringElement classes, based on the
 		// properties set.   It tries to load the most memory efficient one
-		// StringElement, if not, it fallsback to MultilineStringElement or
+		// StringElement, if not, it falls back to MultilineStringElement or
 		// StyledStringElement
 		//
 		static Element LoadString (JsonObject json, object data)
@@ -727,7 +727,7 @@ namespace MonoTouch.Dialog {
 			else if (JsonElement.DateKind != DateTimeKind.Unspecified)
 				return DateTime.SpecifyKind (dt, JsonElement.DateKind);
 
-			// If none of the above is found then we just defaut to local
+			// If none of the above is found then we just default to local
 			else
 				return DateTime.SpecifyKind (dt, DateTimeKind.Local);
 		}

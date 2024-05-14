@@ -2,6 +2,7 @@ using System;
 
 using UIKit;
 using CoreGraphics;
+using JetBrains.Annotations;
 
 namespace MonoTouch.Dialog
 {
@@ -12,8 +13,9 @@ namespace MonoTouch.Dialog
 	/// by assigning to the NormalColor, HighlightedColor and DisabledColor
 	/// properties
 	/// </summary>
+	[PublicAPI]
 	public class GlassButton : UIButton {
-		bool pressed;
+		bool _pressed;
 		
 		public UIColor NormalColor, HighlightedColor, DisabledColor;
 		
@@ -36,9 +38,7 @@ namespace MonoTouch.Dialog
 		/// Whether the button is rendered enabled or not.
 		/// </summary>
 		public override bool Enabled { 
-			get {
-				return base.Enabled;
-			}
+			get => base.Enabled;
 			set {
 				base.Enabled = value;
 				SetNeedsDisplay ();
@@ -48,28 +48,27 @@ namespace MonoTouch.Dialog
 		public override bool BeginTracking (UITouch uitouch, UIEvent? uievent)
 		{
 			SetNeedsDisplay ();
-			pressed = true;
+			_pressed = true;
 			return base.BeginTracking (uitouch, uievent);
 		}
 		
 		public override void EndTracking (UITouch uitouch, UIEvent? uievent)
 		{
-			if (pressed && Enabled)
+			if (_pressed && Enabled)
 			{
 				Tapped?.Invoke (this);
 			}
-			pressed = false;
+			_pressed = false;
 			SetNeedsDisplay ();
 			base.EndTracking (uitouch, uievent);
 		}
 		
 		public override bool ContinueTracking (UITouch uitouch, UIEvent? uievent)
 		{
-			var touch = uievent?.AllTouches.AnyObject as UITouch;
-			if (touch is not null && Bounds.Contains (touch.LocationInView (this)))
-				pressed = true;
+			if (uievent?.AllTouches.AnyObject is UITouch touch && Bounds.Contains (touch.LocationInView (this)))
+				_pressed = true;
 			else
-				pressed = false;
+				_pressed = false;
 			return base.ContinueTracking (uitouch, uievent);
 		}
 		
@@ -78,49 +77,47 @@ namespace MonoTouch.Dialog
 			var context = UIGraphics.GetCurrentContext ();
 			var bounds = Bounds;
 			
-			UIColor background = Enabled ? pressed ? HighlightedColor : NormalColor : DisabledColor;
+			UIColor background = Enabled ? _pressed ? HighlightedColor : NormalColor : DisabledColor;
 			float alpha = 1;
-			
-			CGPath container;
-			container = GraphicsUtil.MakeRoundedRectPath (bounds, 14);
+
+			var container = GraphicsUtil.MakeRoundedRectPath (bounds, 14);
 			context.AddPath (container);
 			context.Clip ();
-			
-			using (var cs = CGColorSpace.CreateDeviceRGB ()){
-				var topCenter = new CGPoint (bounds.GetMidX (), 0);
-				var midCenter = new CGPoint (bounds.GetMidX (), bounds.GetMidY ());
-				var bottomCenter = new CGPoint (bounds.GetMidX (), bounds.GetMaxY ());
 
-				using (var gradient = new CGGradient (cs, new nfloat [] { 0.23f, 0.23f, 0.23f, alpha, 0.47f, 0.47f, 0.47f, alpha }, new nfloat [] {0, 1})){
-					context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
-				}
-				
-				container = GraphicsUtil.MakeRoundedRectPath (bounds.Inset (1, 1), 13);
-				context.AddPath (container);
-				context.Clip ();
-				using (var gradient = new CGGradient (cs, new nfloat [] { 0.05f, 0.05f, 0.05f, alpha, 0.15f, 0.15f, 0.15f, alpha}, new nfloat [] {0, 1})){
-					context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
-				}
-				
-				var nb = bounds.Inset (4, 4);
-				container = GraphicsUtil.MakeRoundedRectPath (nb, 10);
-				context.AddPath (container);
-				context.Clip ();
-				
-				background.SetFill ();
-				context.FillRect (nb);
-				
-				using (var gradient = new CGGradient (cs, new nfloat [] { 1, 1, 1, .35f, 1, 1, 1, 0.06f }, new nfloat [] { 0, 1 })){
-					context.DrawLinearGradient (gradient, topCenter, midCenter, 0);
-				}
-				context.SetLineWidth (2);
-				context.AddPath (container);
-				context.ReplacePathWithStrokedPath ();
-				context.Clip ();
+			using var cs = CGColorSpace.CreateDeviceRGB ();
+			var topCenter = new CGPoint (bounds.GetMidX (), 0);
+			var midCenter = new CGPoint (bounds.GetMidX (), bounds.GetMidY ());
+			var bottomCenter = new CGPoint (bounds.GetMidX (), bounds.GetMaxY ());
 
-				using (var gradient = new CGGradient (cs, new nfloat [] { 1, 1, 1, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f }, new nfloat [] { 0, 1 })){
-					context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
-				}
+			using (var gradient = new CGGradient (cs, new nfloat [] { 0.23f, 0.23f, 0.23f, alpha, 0.47f, 0.47f, 0.47f, alpha }, new nfloat [] {0, 1})){
+				context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
+			}
+				
+			container = GraphicsUtil.MakeRoundedRectPath (bounds.Inset (1, 1), 13);
+			context.AddPath (container);
+			context.Clip ();
+			using (var gradient = new CGGradient (cs, new nfloat [] { 0.05f, 0.05f, 0.05f, alpha, 0.15f, 0.15f, 0.15f, alpha}, new nfloat [] {0, 1})){
+				context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
+			}
+				
+			var nb = bounds.Inset (4, 4);
+			container = GraphicsUtil.MakeRoundedRectPath (nb, 10);
+			context.AddPath (container);
+			context.Clip ();
+				
+			background.SetFill ();
+			context.FillRect (nb);
+				
+			using (var gradient = new CGGradient (cs, new nfloat [] { 1, 1, 1, .35f, 1, 1, 1, 0.06f }, new nfloat [] { 0, 1 })){
+				context.DrawLinearGradient (gradient, topCenter, midCenter, 0);
+			}
+			context.SetLineWidth (2);
+			context.AddPath (container);
+			context.ReplacePathWithStrokedPath ();
+			context.Clip ();
+
+			using (var gradient = new CGGradient (cs, new nfloat [] { 1, 1, 1, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f }, new nfloat [] { 0, 1 })){
+				context.DrawLinearGradient (gradient, topCenter, bottomCenter, 0);
 			}
 		}
 	}

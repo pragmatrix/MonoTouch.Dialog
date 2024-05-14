@@ -2,9 +2,11 @@ using System.Diagnostics.CodeAnalysis;
 using UIKit;
 using CoreGraphics;
 using Foundation;
+using JetBrains.Annotations;
 
 namespace MonoTouch.Dialog
 {
+	[PublicAPI]
 	public abstract class OwnerDrawnElement : Element, IElementSizing
 	{		
 		public string CellReuseIdentifier
@@ -16,11 +18,11 @@ namespace MonoTouch.Dialog
 		{
 			get;set;	
 		}
-		
-		public OwnerDrawnElement (UITableViewCellStyle style, string cellIdentifier) : base(null)
+
+		protected OwnerDrawnElement (UITableViewCellStyle style, string cellIdentifier) : base(null)
 		{
-			this.CellReuseIdentifier = cellIdentifier;
-			this.Style = style;
+			CellReuseIdentifier = cellIdentifier;
+			Style = style;
 		}
 		
 		public nfloat GetHeight (UITableView tableView, NSIndexPath indexPath)
@@ -51,7 +53,7 @@ namespace MonoTouch.Dialog
 		
 		class OwnerDrawnCell : UITableViewCell
 		{
-			OwnerDrawnCellView? view;
+			OwnerDrawnCellView? _view;
 			
 			public OwnerDrawnCell(OwnerDrawnElement element, UITableViewCellStyle style, string cellReuseIdentifier) : base(style, cellReuseIdentifier)
 			{
@@ -61,18 +63,16 @@ namespace MonoTouch.Dialog
 			[DisallowNull]
 			public OwnerDrawnElement? Element
 			{
-				get {
-					return view?.Element;
-				}
+				get => _view?.Element;
 				set {
-					if (view == null)
+					if (_view == null)
 					{
-						view = new OwnerDrawnCellView (value);
-						ContentView.Add (view);
+						_view = new OwnerDrawnCellView (value);
+						ContentView.Add (_view);
 					}
 					else
 					{
-						view.Element = value;
+						_view.Element = value;
 					}
 				}
 			}
@@ -82,34 +82,32 @@ namespace MonoTouch.Dialog
 			public void Update()
 			{
 				SetNeedsDisplay();
-				view?.SetNeedsDisplay();
+				_view?.SetNeedsDisplay();
 			}		
 	
 			public override void LayoutSubviews()
 			{
 				base.LayoutSubviews();
 
-				if (view is not null) 
-					view.Frame = ContentView.Bounds;
+				if (_view is not null) 
+					_view.Frame = ContentView.Bounds;
 			}
 		}
 		
 		class OwnerDrawnCellView : UIView
 		{				
-			OwnerDrawnElement element;
+			OwnerDrawnElement _element;
 			
 			public OwnerDrawnCellView(OwnerDrawnElement element)
 			{
-				this.element = element;
+				_element = element;
 			}
 			
 			
 			public OwnerDrawnElement Element
 			{
-				get { return element; }
-				set {
-					element = value; 
-				}
+				get => _element;
+				set => _element = value;
 			}
 			
 			public void Update()
@@ -121,7 +119,7 @@ namespace MonoTouch.Dialog
 			public override void Draw (CGRect rect)
 			{
 				CGContext context = UIGraphics.GetCurrentContext();
-				element.Draw(rect, context, this);
+				_element.Draw(rect, context, this);
 			}
 		}
 	}

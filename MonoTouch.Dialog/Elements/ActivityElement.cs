@@ -9,43 +9,34 @@ namespace MonoTouch.Dialog
 		{
 		}
 
-		UIActivityIndicatorView? indicator;
+		UIActivityIndicatorView? _indicator;
 
 		public bool Animating {
-			get {
-				return indicator != null ? indicator.IsAnimating : false;
-			}
+			get => _indicator is { IsAnimating: true };
 			set {
 				if (value)
-					indicator?.StartAnimating ();
+					_indicator?.StartAnimating ();
 				else
-					indicator?.StopAnimating ();
+					_indicator?.StopAnimating ();
 			}
 		}
 
-		static NSString ikey = new NSString ("ActivityElement");
+		static readonly NSString Ikey = new NSString ("ActivityElement");
 
-		protected override NSString CellKey {
-			get {
-				return ikey;
-			}
-		}
+		protected override NSString CellKey => Ikey;
 
 		public override UITableViewCell GetCell (UITableView tv)
 		{
-			var cell = tv.DequeueReusableCell (CellKey);
-			if (cell == null){
-				cell = new UITableViewCell (UITableViewCellStyle.Default, CellKey);
-			}
+			var cell = tv.DequeueReusableCell (CellKey) ?? new UITableViewCell (UITableViewCellStyle.Default, CellKey);
 
-			indicator = new UIActivityIndicatorView (UIActivityIndicatorViewStyle.Gray);
-			var sbounds = tv.Frame;
-			var vbounds = indicator.Bounds;
+			_indicator = new UIActivityIndicatorView (UIActivityIndicatorViewStyle.Gray);
+			var sBounds = tv.Frame;
+			var vBounds = _indicator.Bounds;
 
-			indicator.Frame = new CGRect((sbounds.Width-vbounds.Width)/2, 12, vbounds.Width, vbounds.Height);
-			indicator.StartAnimating ();
+			_indicator.Frame = new CGRect((sBounds.Width-vBounds.Width)/2, 12, vBounds.Width, vBounds.Height);
+			_indicator.StartAnimating ();
 
-			cell.Add (indicator);
+			cell.Add (_indicator);
 
 			return cell;
 		}
@@ -53,9 +44,9 @@ namespace MonoTouch.Dialog
 		protected override void Dispose (bool disposing)
 		{
 			if (disposing){
-				if (indicator != null){
-					indicator.Dispose ();
-					indicator = null;
+				if (_indicator != null){
+					_indicator.Dispose ();
+					_indicator = null;
 				}
 			}
 			base.Dispose (disposing);

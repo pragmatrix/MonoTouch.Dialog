@@ -15,13 +15,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
-
+using JetBrains.Annotations;
 using UIKit;
 
 using NSAction = System.Action;
 
 namespace MonoTouch.Dialog
 {
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class EntryAttribute : Attribute {
 		public EntryAttribute () : this (null) { }
@@ -38,28 +39,37 @@ namespace MonoTouch.Dialog
 		public UITextFieldViewMode ClearButtonMode;
 	}
 
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class DateAttribute : Attribute { }
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class TimeAttribute : Attribute { }
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class CheckboxAttribute : Attribute {}
 
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class MultilineAttribute : Attribute {}
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class HtmlAttribute : Attribute {}
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class SkipAttribute : Attribute {}
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class PasswordAttribute : EntryAttribute {
 		public PasswordAttribute (string placeholder) : base (placeholder) {}
 	}
+
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class AlignmentAttribute : Attribute {
 		public AlignmentAttribute (UITextAlignment alignment) {
@@ -68,6 +78,7 @@ namespace MonoTouch.Dialog
 		public UITextAlignment Alignment;
 	}
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class RadioSelectionAttribute : Attribute {
 		public string Target;
@@ -77,6 +88,7 @@ namespace MonoTouch.Dialog
 		}
 	}
 
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class OnTapAttribute : Attribute {
 		public OnTapAttribute (string method)
@@ -86,6 +98,7 @@ namespace MonoTouch.Dialog
 		public string Method;
 	}
 	
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class CaptionAttribute : Attribute {
 		public CaptionAttribute (string caption)
@@ -95,6 +108,7 @@ namespace MonoTouch.Dialog
 		public string Caption;
 	}
 
+	[PublicAPI]
 	[AttributeUsage (AttributeTargets.Field | AttributeTargets.Property, Inherited=false)]
 	public class SectionAttribute : Attribute {
 		public SectionAttribute () {}
@@ -114,6 +128,8 @@ namespace MonoTouch.Dialog
 		public string? Footer;
 	}
 
+	
+	[PublicAPI]
 	public class RangeAttribute : Attribute {
 		public RangeAttribute (float low, float high)
 		{
@@ -124,10 +140,11 @@ namespace MonoTouch.Dialog
 		public bool ShowCaption;
 	}
 
+	[PublicAPI]
 	public class BindingContext : IDisposable {
 		public RootElement Root;
-		Dictionary<Element,MemberAndInstance> mappings;
-		Dictionary<StringElement, Action> handlerMappings;
+		Dictionary<Element,MemberAndInstance> _mappings;
+		Dictionary<StringElement, Action> _handlerMappings;
 			
 		class MemberAndInstance {
 			public MemberAndInstance (MemberInfo mi, object o)
@@ -135,8 +152,8 @@ namespace MonoTouch.Dialog
 				Member = mi;
 				Obj = o;
 			}
-			public MemberInfo Member;
-			public object Obj;
+			public readonly MemberInfo Member;
+			public readonly object Obj;
 		}
 		
 		static object? GetValue (MemberInfo mi, object? o)
@@ -147,7 +164,7 @@ namespace MonoTouch.Dialog
 			var pi = mi as PropertyInfo;
 			
 			var getMethod = pi?.GetGetMethod ();
-			return getMethod?.Invoke (o, new object [0]);
+			return getMethod?.Invoke (o, Array.Empty<object>());
 		}
 
 		static void SetValue (MemberInfo mi, object o, object? val)
@@ -186,21 +203,22 @@ namespace MonoTouch.Dialog
 
 		// Returns the type for fields and properties and null for everything else
 		static Type? GetTypeForMember (MemberInfo mi)
-		{				
-			if (mi is FieldInfo)
-				return ((FieldInfo) mi).FieldType;
-			else if (mi is PropertyInfo)
-				return ((PropertyInfo) mi).PropertyType;
-			return null;
+		{
+			return mi switch
+			{
+				FieldInfo info => info.FieldType,
+				PropertyInfo info => info.PropertyType,
+				_ => null
+			};
 		}
 		
 		public BindingContext (object callbacks, object o, string title)
 		{
 			if (o == null)
-				throw new ArgumentNullException ("o");
+				throw new ArgumentNullException (nameof(o));
 			
-			mappings = new Dictionary<Element,MemberAndInstance> ();
-			handlerMappings = new Dictionary<StringElement, NSAction> ();
+			_mappings = new Dictionary<Element,MemberAndInstance> ();
+			_handlerMappings = new Dictionary<StringElement, NSAction> ();
 			
 			Root = new RootElement (title);
 			Populate (callbacks, o, Root);
@@ -208,7 +226,7 @@ namespace MonoTouch.Dialog
 		
 		void Populate (object callbacks, object o, RootElement root)
 		{
-			MemberInfo? last_radio_index = null;
+			MemberInfo? lastRadioIndex = null;
 			var members = o.GetType ().GetMembers (BindingFlags.DeclaredOnly | BindingFlags.Public |
 							       BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -223,25 +241,34 @@ namespace MonoTouch.Dialog
 				string? caption = null;
 				object [] attrs = mi.GetCustomAttributes (false);
 				bool skip = false;
-				foreach (var attr in attrs){
-					if (attr is SkipAttribute || attr is System.Runtime.CompilerServices.CompilerGeneratedAttribute)
-						skip = true;
-					else if (attr is CaptionAttribute)
-						caption = ((CaptionAttribute) attr).Caption;
-					else if (attr is SectionAttribute sa){
-						if (section != null)
-							root.Add (section);
-						section = new Section (sa.Caption, sa.Footer);
+				foreach (var attr in attrs)
+				{
+					if (attr is not SkipAttribute &&
+					    attr is not System.Runtime.CompilerServices.CompilerGeneratedAttribute)
+					{
+						switch (attr)
+						{
+							case CaptionAttribute attribute:
+								caption = attribute.Caption;
+								break;
+							case SectionAttribute sa:
+							{
+								if (section != null)
+									root.Add(section);
+								section = new Section(sa.Caption, sa.Footer);
+								break;
+							}
+						}
 					}
+					else
+						skip = true;
 				}
 				if (skip)
 					continue;
 				
-				if (caption == null)
-					caption = MakeCaption (mi.Name);
+				caption ??= MakeCaption(mi.Name);
 				
-				if (section == null)
-					section = new Section ();
+				section ??= new Section();
 				
 				Element? element = null;
 				if (mType == typeof (string)){
@@ -252,31 +279,41 @@ namespace MonoTouch.Dialog
 					NSAction? invoke = null;
 					bool multi = false;
 					
-					foreach (object attr in attrs){
-						if (attr is PasswordAttribute)
-							pa = attr as PasswordAttribute;
-						else if (attr is EntryAttribute)
-							ea = attr as EntryAttribute;
-						else if (attr is MultilineAttribute)
-							multi = true;
-						else if (attr is HtmlAttribute)
-							html = attr;
-						else if (attr is AlignmentAttribute)
-							align = attr as AlignmentAttribute;
-						
-						if (attr is OnTapAttribute){
-							string mname = ((OnTapAttribute) attr).Method;
+					foreach (object attr in attrs)
+					{
+						switch (attr)
+						{
+							case PasswordAttribute attribute:
+								pa = attribute;
+								break;
+							case EntryAttribute attribute:
+								ea = attribute;
+								break;
+							case MultilineAttribute:
+								multi = true;
+								break;
+							case HtmlAttribute:
+								html = attr;
+								break;
+							case AlignmentAttribute attribute:
+								align = attribute;
+								break;
+							case OnTapAttribute attribute:
+							{
+								string methodName = attribute.Method;
 							
-							if (callbacks == null){
-								throw new Exception ("Your class contains [OnTap] attributes, but you passed a null object for `context' in the constructor");
+								if (callbacks == null){
+									throw new Exception ("Your class contains [OnTap] attributes, but you passed a null object for `context' in the constructor");
+								}
+							
+								var method = callbacks.GetType ().GetMethod (methodName);
+								if (method == null)
+									throw new Exception ("Did not find method " + methodName);
+								invoke = delegate {
+									method.Invoke (method.IsStatic ? null : callbacks, Array.Empty<object>());
+								};
+								break;
 							}
-							
-							var method = callbacks.GetType ().GetMethod (mname);
-							if (method == null)
-								throw new Exception ("Did not find method " + mname);
-							invoke = delegate {
-								method.Invoke (method.IsStatic ? null : callbacks, new object [0]);
-							};
 						}
 					}
 					
@@ -292,17 +329,17 @@ namespace MonoTouch.Dialog
 						element = new HtmlElement(caption, value);
 					}
 					else {
-						var selement = new StringElement (caption, value);
-						element = selement;
+						var sElement = new StringElement (caption, value);
+						element = sElement;
 						
 						if (align != null)
-							selement.Alignment = align.Alignment;
+							sElement.Alignment = align.Alignment;
 					}
 					
 					if (invoke != null) {
 						var strElement = (StringElement) element;
 						strElement.Tapped += invoke;
-						handlerMappings.Add (strElement, invoke);
+						_handlerMappings.Add (strElement, invoke);
 					}
 				} else if (mType == typeof (float)){
 					var floatElement = new FloatElement (null, null, (float) GetValue (mi, o)!);
@@ -345,44 +382,43 @@ namespace MonoTouch.Dialog
 					else
 						 element = new DateTimeElement (caption, dateTime);
 				} else if (mType.IsEnum){
-					var csection = new Section ();
-					ulong evalue = Convert.ToUInt64 (GetValue (mi, o), null);
+					var cSection = new Section ();
+					ulong eValue = Convert.ToUInt64 (GetValue (mi, o), null);
 					int idx = 0;
 					int selected = 0;
 					
 					foreach (var fi in mType.GetFields (BindingFlags.Public | BindingFlags.Static)){
 						ulong v = Convert.ToUInt64 (GetValue (fi, null));
 						
-						if (v == evalue)
+						if (v == eValue)
 							selected = idx;
-						
-						CaptionAttribute? ca = Attribute.GetCustomAttribute(fi, typeof(CaptionAttribute)) as CaptionAttribute;
-						csection.Add (new RadioElement (ca != null ? ca.Caption : MakeCaption (fi.Name)));
+
+						cSection.Add (new RadioElement (Attribute.GetCustomAttribute(fi, typeof(CaptionAttribute)) is CaptionAttribute ca ? ca.Caption : MakeCaption (fi.Name)));
 						idx++;
 					}
 					
-					element = new RootElement (caption, new RadioGroup (null, selected)) { csection };
+					element = new RootElement (caption, new RadioGroup (null, selected)) { cSection };
 				} else if (mType == typeof (UIImage)){
 					element = new ImageElement ((UIImage) GetValue (mi, o)!);
 				} else if (typeof (IEnumerable).IsAssignableFrom (mType)){
-					var csection = new Section ();
+					var cSection = new Section ();
 					int count = 0;
 					
-					if (last_radio_index == null)
+					if (lastRadioIndex == null)
 						throw new Exception ("IEnumerable found, but no previous int found");
 					foreach (var e in (IEnumerable) GetValue (mi, o)!){
-						csection.Add (new RadioElement (e?.ToString() ?? ""));
+						cSection.Add (new RadioElement (e?.ToString() ?? ""));
 						count++;
 					}
-					int selected = (int) GetValue (last_radio_index, o)!;
+					int selected = (int) GetValue (lastRadioIndex, o)!;
 					if (selected >= count || selected < 0)
 						selected = 0;
-					element = new RootElement (caption, new MemberRadioGroup (null, selected, last_radio_index)) { csection };
-					last_radio_index = null;
+					element = new RootElement (caption, new MemberRadioGroup (null, selected, lastRadioIndex)) { cSection };
+					lastRadioIndex = null;
 				} else if (typeof (int) == mType){
 					foreach (object attr in attrs){
 						if (attr is RadioSelectionAttribute){
-							last_radio_index = mi;
+							lastRadioIndex = mi;
 							break;
 						}
 					}
@@ -398,17 +434,18 @@ namespace MonoTouch.Dialog
 				if (element == null)
 					continue;
 				section.Add (element);
-				mappings [element] = new MemberAndInstance (mi, o);
+				_mappings [element] = new MemberAndInstance (mi, o);
 			}
 			root.Add (section);
 		}
 		
+		[PublicAPI]
 		class MemberRadioGroup : RadioGroup {
-			public MemberInfo mi;
+			public MemberInfo MI;
 			
 			public MemberRadioGroup (string? key, int selected, MemberInfo mi) : base (key, selected)
 			{
-				this.mi = mi;
+				MI = mi;
 			}
 		}
 		
@@ -421,47 +458,62 @@ namespace MonoTouch.Dialog
 		{
 			if (disposing){
 				// Dispose any [OnTap] handler associated to its element
-				foreach (var strElement in handlerMappings)
+				foreach (var strElement in _handlerMappings)
 					strElement.Key.Tapped -= strElement.Value;
-				handlerMappings = new Dictionary<StringElement, Action>();
+				_handlerMappings = new Dictionary<StringElement, Action>();
 
-				foreach (var element in mappings.Keys){
+				foreach (var element in _mappings.Keys){
 					element.Dispose ();
 				}
-				mappings = new Dictionary<Element, MemberAndInstance>();
+				_mappings = new Dictionary<Element, MemberAndInstance>();
 			}
 		}
 		
 		public void Fetch ()
 		{
-			foreach (var dk in mappings){
+			foreach (var dk in _mappings){
 				Element element = dk.Key;
 				MemberInfo mi = dk.Value.Member;
 				object obj = dk.Value.Obj;
 				
-				if (element is DateTimeElement)
-					SetValue (mi, obj, ((DateTimeElement) element).DateValue);
-				else if (element is FloatElement)
-					SetValue (mi, obj, ((FloatElement) element).Value);
-				else if (element is BooleanElement)
-					SetValue (mi, obj, ((BooleanElement) element).Value);
-				else if (element is CheckboxElement)
-					SetValue (mi, obj, ((CheckboxElement) element).Value);
-				else if (element is EntryElement){
-					var entry = (EntryElement) element;
-					entry.FetchValue ();
-					SetValue (mi, obj, entry.Value);
-				} else if (element is ImageElement)
-					SetValue (mi, obj, ((ImageElement) element).Value);
-				else if (element is RootElement re){
-					if (re.group is MemberRadioGroup group){
-						SetValue (group.mi, obj, re.RadioSelected);
-					} else if (re.group is RadioGroup){
-						var mType = GetTypeForMember (mi);
-						Trace.Assert(mType is not null);
-						var fi = mType.GetFields (BindingFlags.Public | BindingFlags.Static) [re.RadioSelected];
+				switch (element)
+				{
+					case DateTimeElement timeElement:
+						SetValue (mi, obj, timeElement.DateValue);
+						break;
+					case FloatElement floatElement:
+						SetValue (mi, obj, floatElement.Value);
+						break;
+					case BooleanElement booleanElement:
+						SetValue (mi, obj, booleanElement.Value);
+						break;
+					case CheckboxElement checkboxElement:
+						SetValue (mi, obj, checkboxElement.Value);
+						break;
+					case EntryElement entryElement:
+					{
+						var entry = entryElement;
+						entry.FetchValue ();
+						SetValue (mi, obj, entry.Value);
+						break;
+					}
+					case ImageElement imageElement:
+						SetValue (mi, obj, imageElement.Value);
+						break;
+					case RootElement { Group: MemberRadioGroup group } re:
+						SetValue (group.MI, obj, re.RadioSelected);
+						break;
+					case RootElement re:
+					{
+						if (re.Group is RadioGroup){
+							var mType = GetTypeForMember (mi);
+							Trace.Assert(mType is not null);
+							var fi = mType.GetFields (BindingFlags.Public | BindingFlags.Static) [re.RadioSelected];
 						
-						SetValue (mi, obj, fi.GetValue (null));
+							SetValue (mi, obj, fi.GetValue (null));
+						}
+
+						break;
 					}
 				}
 			}
